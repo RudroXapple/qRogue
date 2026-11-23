@@ -38,9 +38,13 @@ jobs:
         shell: bash
         run: buildozer -v android debug 2>&1 | tee build.log
 
-      - name: Show end of build log
+      - name: Show error lines
         if: failure()
-        run: tail -n 70 build.log
+        run: |
+          echo "=== ERROR LINES ==="
+          grep -v '^# ' build.log | grep -n -i -E "error|fatal|failed|not found|no such" | cut -c1-220 | tail -n 25 || true
+          echo "=== LAST 50 LINES (without env dump) ==="
+          grep -v '^# ' build.log | tail -n 50 | cut -c1-220
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
