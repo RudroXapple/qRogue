@@ -35,7 +35,12 @@ jobs:
           pip install buildozer Cython==0.29.37
 
       - name: Build APK
-        run: buildozer -v android debug
+        shell: bash
+        run: buildozer -v android debug 2>&1 | tee build.log
+
+      - name: Show end of build log
+        if: failure()
+        run: tail -n 70 build.log
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
