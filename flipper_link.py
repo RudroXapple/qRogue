@@ -4,6 +4,7 @@ import time
 from kivy.clock import Clock
 from kivy.utils import platform
 
+FLIPPER_VID = 0x0483
 
 def log(msg):
     print(msg)
