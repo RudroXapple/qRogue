@@ -416,5 +416,33 @@ class QFlipperApp(App):
 
 
 if __name__ == "__main__":
-    from app_ui import HomeApp
-    HomeApp().run()
+    try:
+        from kivy.base import ExceptionHandler, ExceptionManager
+
+        class _Keep(ExceptionHandler):
+            def handle_exception(self, inst):
+                log("ERROR: %r" % (inst,))
+                return ExceptionManager.PASS
+
+        ExceptionManager.add_handler(_Keep())
+        from app_ui import HomeApp
+        HomeApp().run()
+    except Exception:
+        import traceback
+        from kivy.app import App
+        from kivy.uix.label import Label
+        from kivy.uix.scrollview import ScrollView
+
+        tb = traceback.format_exc()
+
+        class ErrorApp(App):
+            def build(self):
+                sv = ScrollView()
+                lbl = Label(text=tb, size_hint_y=None, halign="left",
+                            valign="top", font_size="14sp",
+                            text_size=(Window.width - 40, None))
+                lbl.bind(texture_size=lambda i, s: setattr(i, "height", s[1]))
+                sv.add_widget(lbl)
+                return sv
+
+        ErrorApp().run()
