@@ -416,4 +416,5 @@ class QFlipperApp(App):
 
 
 if __name__ == "__main__":
-    QFlipperApp().run()
+    from app_ui import HomeApp
+    HomeApp().run()
