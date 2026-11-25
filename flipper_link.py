@@ -122,8 +122,19 @@ class FlipperLink:
             port.write(b"\r\n")
             g = self._read_until_prompt(port, 2.0)
             log("greet: %r" % (g,))
-            port.write(b"device_info\r\n")
-            out = self._read_until_prompt(port, 4.0).decode(errors="replace")
+            out = ""
+            for cmd in (b"device_info", b"info device", b"help"):
+                try:
+                    n = port.write(cmd + b"\r\n")
+                except Exception as e:
+                    log("write err: %r" % (e,))
+                    n = None
+                log("sent %r ret=%r" % (cmd, n))
+                raw = self._read_until_prompt(port, 3.0)
+                log("reply: %r" % (raw[:120],))
+                out = raw.decode(errors="replace")
+                if ":" in out:
+                    break
             info = {}
             for line in out.splitlines():
                 if ":" in line:
