@@ -139,6 +139,20 @@ class FlipperLink:
             port.write(b"\r\n")
             g = self._read_until_prompt(port, 2.0)
             log("greet: %r" % (g,))
+            try:
+                d0 = self._read_for(port, 2.0)
+                log("diag idle: %s" % d0.hex())
+                w = port.write(b"help\r")
+                d1 = self._read_for(port, 3.0)
+                log("diag help1 ret=%r: %r" % (w, d1[:80]))
+                port.write(b"\x03")
+                d2 = self._read_for(port, 1.0)
+                log("diag ctrlc: %r" % (d2[:40],))
+                port.write(b"\r")
+                d3 = self._read_for(port, 1.5)
+                log("diag cr: %r" % (d3[:40],))
+            except Exception as e:
+                log("diag err: %r" % (e,))
             out = ""
             for cmd in (b"device_info", b"info device", b"help"):
                 try:
