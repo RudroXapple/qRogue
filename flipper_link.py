@@ -19,6 +19,7 @@ class FlipperLink:
         self.on_state = on_state
         self.port = None
         self.rpc = None
+        self.on_frame = None
         self.devname = None
         self.busy = False
         self.failed = None
@@ -124,6 +125,23 @@ class FlipperLink:
                 time.sleep(0.02)
         return buf
 
+    def _stream(self, port, rpc):
+        n = 0
+        try:
+            rpc.start_stream()
+            log("stream started")
+            while self.port is port:
+                data = rpc.screen(0.5)
+                if not data:
+                    continue
+                n += 1
+                if n == 1 or len(data) != 1024:
+                    log("frame #%d len=%d" % (n, len(data)))
+                if len(data) == 1024 and self.on_frame:
+                    Clock.schedule_once(lambda dt, d=data: self.on_frame(d))
+        except Exception as e:
+            log("stream err: %r" % (e,))
+
     def _open(self, name):
         port = None
         try:
@@ -156,6 +174,9 @@ class FlipperLink:
             for k in list(info)[:6]:
                 log("  %s = %s" % (k, info[k]))
             self.port, self.devname = port, name
+            if self.rpc:
+                threading.Thread(target=self._stream, args=(port, self.rpc),
+                                 daemon=True).start()
             Clock.schedule_once(lambda dt: self.on_state("connected", info))
         except Exception as e:
             log("open failed: %r" % (e,))

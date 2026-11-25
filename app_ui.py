@@ -11,6 +11,7 @@ from kivy.clock import Clock
 from kivy.core.text import LabelBase
 from kivy.core.window import Window
 from kivy.graphics import Color, Line, RoundedRectangle
+from kivy.graphics.texture import Texture
 from kivy.properties import BooleanProperty
 from kivy.uix.button import Button
 from kivy.uix.image import Image
@@ -172,6 +173,7 @@ class HomeApp(App):
 
         self._build_home()
         self.link = FlipperLink(self.on_state, log)
+        self.link.on_frame = self._frame
         Clock.schedule_interval(self.link.poll, 1.0)
         Clock.schedule_interval(self._refresh_log, 0.5)
         return st
@@ -278,6 +280,8 @@ class HomeApp(App):
         else:
             hint(self.flipper, *self.C(216, 82, 360, 156))
             hint(self.screen, *self.C(216 + 93, 82 + 26, 128, 64))
+            self.screen.source = ""
+            self.screen.source = asset("gfx", "default.png")
         self._refresh_tabs()
 
     def _fill(self, info):
@@ -304,6 +308,28 @@ class HomeApp(App):
             self.status.text = "Ready."
         elif state == "error":
             self.status.text = "Error: " + info.get("msg", "")[:60]
+
+    def _frame(self, data):
+        if not self.connected:
+            return
+        tex = getattr(self, "_tex", None)
+        if tex is None:
+            tex = self._tex = Texture.create(size=(128, 64), colorfmt="rgba")
+            tex.mag_filter = "nearest"
+        px = bytearray(b"\xff\x82\x00\xff" * (128 * 64))
+        for i in range(1024):
+            b = data[i]
+            if not b:
+                continue
+            x = i % 128
+            base = (i // 128) * 8
+            for bit in range(8):
+                if (b >> bit) & 1:
+                    o = ((63 - (base + bit)) * 128 + x) * 4
+                    px[o:o + 4] = b"\x00\x00\x00\xff"
+        tex.blit_buffer(bytes(px), colorfmt="rgba", bufferfmt="ubyte")
+        self.screen.texture = tex
+        self.screen.canvas.ask_update()
 
     def say(self, msg):
         self.status.text = msg
