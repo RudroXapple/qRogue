@@ -88,14 +88,23 @@ class FlipperLink:
     def _read_until_prompt(port, timeout):
         buf = b""
         end = time.time() + timeout
+        try:
+            port.timeout = 0.1
+        except Exception:
+            pass
         while time.time() < end:
-            n = port.in_waiting
-            if n:
-                buf += port.read(n)
-                if buf.rstrip(b" ").endswith(b">:"):
+            try:
+                chunk = port.read(256)
+            except Exception as e:
+                log("read err: %r" % (e,))
+                break
+            if chunk:
+                buf += chunk
+                if buf.rstrip(b" \r\n").endswith(b">:"):
                     break
             else:
-                time.sleep(0.05)
+                time.sleep(0.02)
+        log("rx %d bytes" % len(buf))
         return buf
 
     def _open(self, name):
