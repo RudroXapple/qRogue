@@ -324,10 +324,8 @@ class HomeApp(App):
     def _frame(self, data):
         if not self.connected:
             return
-        tex = getattr(self, "_tex", None)
-        if tex is None:
-            tex = self._tex = Texture.create(size=(128, 64), colorfmt="rgba")
-            tex.mag_filter = "nearest"
+        tex = Texture.create(size=(128, 64), colorfmt="rgba")
+        tex.mag_filter = "nearest"
         px = bytearray(b"\xff\x82\x00\xff" * (128 * 64))
         for i in range(1024):
             b = data[i]

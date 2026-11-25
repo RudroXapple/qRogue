@@ -127,15 +127,19 @@ class FlipperLink:
 
     def _stream(self, port, rpc):
         n = 0
+        idle = 0
         try:
             rpc.start_stream()
             log("stream started")
             while self.port is port:
                 data = rpc.screen(0.5)
                 if not data:
+                    idle += 1
+                    if idle % 10 == 0:
+                        log("no frame x%d" % idle)
                     continue
                 n += 1
-                if n == 1 or n % 50 == 0 or len(data) != 1024:
+                if n == 1 or n % 10 == 0 or len(data) != 1024:
                     log("frame #%d len=%d" % (n, len(data)))
                 if len(data) == 1024 and self.on_frame:
                     Clock.schedule_once(lambda dt, d=data: self.on_frame(d))
