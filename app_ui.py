@@ -5,6 +5,7 @@ MainButton.qml, Button.qml, TextLabel.qml. Needs main.py and flipper_link.py.
 Buttons that need real Flipper functions only show "coming soon".
 """
 import os
+import threading
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -172,6 +173,16 @@ class HomeApp(App):
                                sx + 10 + 22 + 10, fy, sw - 42, 42)
 
         self._build_home()
+        self.dpad = []
+        for name, px, py, bw, bh in (
+                ("up", 274, 32, 30, 22), ("down", 274, 84, 30, 22),
+                ("left", 248, 58, 22, 30), ("right", 300, 58, 22, 30),
+                ("ok", 274, 58, 26, 26), ("back", 326, 83, 30, 30)):
+            b = Button(text="", background_normal="", background_down="",
+                       background_color=(0, 0, 0, 0))
+            b.bind(on_release=lambda w, n=name: self._key(n))
+            hint(b, 403 + px - bw / 2 + self.cx, 82 + py - bh / 2 + self.cy, bw, bh)
+            self.dpad.append(b)
         self.link = FlipperLink(self.on_state, log)
         self.link.on_frame = self._frame
         Clock.schedule_interval(self.link.poll, 1.0)
@@ -274,6 +285,7 @@ class HomeApp(App):
     def _set_connected(self, on):
         self._vis(self.home, on)
         self._vis(self.waiting_only, not on)
+        self._vis(self.dpad, on)
         if on:
             hint(self.flipper, *self.C(403, 82, 360, 156))
             hint(self.screen, *self.C(403 + 93, 82 + 26, 128, 64))
@@ -330,6 +342,19 @@ class HomeApp(App):
         tex.blit_buffer(bytes(px), colorfmt="rgba", bufferfmt="ubyte")
         self.screen.texture = tex
         self.screen.canvas.ask_update()
+
+    def _key(self, name):
+        rpc = self.link.rpc
+        if not rpc:
+            return
+        log("key %s" % name)
+
+        def run():
+            try:
+                rpc.key(name)
+            except Exception as e:
+                log("key err: %r" % (e,))
+        threading.Thread(target=run, daemon=True).start()
 
     def say(self, msg):
         self.status.text = msg

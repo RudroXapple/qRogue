@@ -135,7 +135,7 @@ class FlipperLink:
                 if not data:
                     continue
                 n += 1
-                if n == 1 or len(data) != 1024:
+                if n == 1 or n % 50 == 0 or len(data) != 1024:
                     log("frame #%d len=%d" % (n, len(data)))
                 if len(data) == 1024 and self.on_frame:
                     Clock.schedule_once(lambda dt, d=data: self.on_frame(d))
