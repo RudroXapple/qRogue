@@ -120,7 +120,8 @@ class FlipperLink:
             log("port open, asking device_info")
             time.sleep(0.3)
             port.write(b"\r\n")
-            self._read_until_prompt(port, 2.0)
+            g = self._read_until_prompt(port, 2.0)
+            log("greet: %r" % (g,))
             port.write(b"device_info\r\n")
             out = self._read_until_prompt(port, 4.0).decode(errors="replace")
             info = {}
