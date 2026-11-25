@@ -107,6 +107,22 @@ class FlipperLink:
         log("rx %d bytes" % len(buf))
         return buf
 
+    @staticmethod
+    def _read_for(port, secs):
+        buf = b""
+        end = time.time() + secs
+        while time.time() < end:
+            try:
+                chunk = port.read(256)
+            except Exception as e:
+                log("read err: %r" % (e,))
+                break
+            if chunk:
+                buf += chunk
+            else:
+                time.sleep(0.02)
+        return buf
+
     def _open(self, name):
         port = None
         try:
@@ -115,6 +131,7 @@ class FlipperLink:
                 raise RuntimeError("serial port did not open")
             try:
                 port.dtr = True
+                port.rts = True
             except Exception as e:
                 log("dtr: %r" % (e,))
             log("port open, asking device_info")
@@ -125,7 +142,10 @@ class FlipperLink:
             out = ""
             for cmd in (b"device_info", b"info device", b"help"):
                 try:
-                    n = port.write(cmd + b"\r\n")
+                    n = 0
+                    for ch in cmd + b"\r":
+                        n += port.write(bytes([ch])) or 0
+                        time.sleep(0.01)
                 except Exception as e:
                     log("write err: %r" % (e,))
                     n = None
@@ -135,6 +155,17 @@ class FlipperLink:
                 out = raw.decode(errors="replace")
                 if ":" in out:
                     break
+            try:
+                for ch in b"start_rpc_session\r":
+                    port.write(bytes([ch]))
+                    time.sleep(0.01)
+                r1 = self._read_for(port, 1.5)
+                log("rpc start: %s" % r1.hex())
+                port.write(bytes([0x04, 0x08, 0x01, 0x2a, 0x00]))
+                r2 = self._read_for(port, 2.0)
+                log("rpc ping: %s" % r2.hex())
+            except Exception as e:
+                log("rpc probe err: %r" % (e,))
             info = {}
             for line in out.splitlines():
                 if ":" in line:
