@@ -18,6 +18,7 @@ class FlipperLink:
             globals()["log"] = ext_log
         self.on_state = on_state
         self.port = None
+        self.rpc = None
         self.devname = None
         self.busy = False
         self.failed = None
@@ -139,57 +140,21 @@ class FlipperLink:
             port.write(b"\r\n")
             g = self._read_until_prompt(port, 2.0)
             log("greet: %r" % (g,))
+            info = {}
             try:
-                d0 = self._read_for(port, 2.0)
-                log("diag idle: %s" % d0.hex())
-                w = port.write(b"help\r")
-                d1 = self._read_for(port, 3.0)
-                log("diag help1 ret=%r: %r" % (w, d1[:80]))
-                port.write(b"\x03")
-                d2 = self._read_for(port, 1.0)
-                log("diag ctrlc: %r" % (d2[:40],))
-                port.write(b"\r")
-                d3 = self._read_for(port, 1.5)
-                log("diag cr: %r" % (d3[:40],))
-            except Exception as e:
-                log("diag err: %r" % (e,))
-            out = ""
-            for cmd in (b"device_info", b"info device", b"help"):
-                try:
-                    n = 0
-                    for ch in cmd + b"\r":
-                        n += port.write(bytes([ch])) or 0
-                        time.sleep(0.01)
-                except Exception as e:
-                    log("write err: %r" % (e,))
-                    n = None
-                log("sent %r ret=%r" % (cmd, n))
-                raw = self._read_until_prompt(port, 3.0)
-                log("reply: %r" % (raw[:120],))
-                out = raw.decode(errors="replace")
-                if ":" in out:
-                    break
-            try:
+                from flipper_rpc import Rpc
                 for ch in b"start_rpc_session\r":
                     port.write(bytes([ch]))
                     time.sleep(0.01)
-                r1 = self._read_for(port, 1.5)
+                r1 = self._read_for(port, 1.0)
                 log("rpc start: %s" % r1.hex())
-                port.write(bytes([0x04, 0x08, 0x01, 0x2a, 0x00]))
-                r2 = self._read_for(port, 2.0)
-                log("rpc ping: %s" % r2.hex())
+                self.rpc = Rpc(port, log)
+                info = self.rpc.device_info()
             except Exception as e:
-                log("rpc probe err: %r" % (e,))
-            info = {}
-            for line in out.splitlines():
-                if ":" in line:
-                    k, v = line.split(":", 1)
-                    info[k.strip()] = v.strip()
+                log("rpc err: %r" % (e,))
             log("device_info: %d fields" % len(info))
             for k in list(info)[:6]:
                 log("  %s = %s" % (k, info[k]))
-            if not info:
-                log("raw: %r" % (out[:200],))
             self.port, self.devname = port, name
             Clock.schedule_once(lambda dt: self.on_state("connected", info))
         except Exception as e:
