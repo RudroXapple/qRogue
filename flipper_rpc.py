@@ -69,7 +69,7 @@ class Rpc:
                 f = _fields(body)
                 return {"id": f.get(1), "status": f.get(2, 0),
                         "next": bool(f.get(3, 0)), "f": f}
-            chunk = self.port.read(256)
+            chunk = self.port.read(max(1, min(self.port.in_waiting, 4096)))
             if chunk:
                 self.buf += chunk
             else:

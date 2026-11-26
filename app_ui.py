@@ -294,6 +294,7 @@ class HomeApp(App):
             hint(self.screen, *self.C(216 + 93, 82 + 26, 128, 64))
             self.screen.source = ""
             self.screen.source = asset("gfx", "default.png")
+            self.screen.color = (1, 1, 1, 1)
         self._refresh_tabs()
 
     def _fill(self, info):
@@ -324,22 +325,29 @@ class HomeApp(App):
     def _frame(self, data):
         if not self.connected:
             return
-        tex = Texture.create(size=(128, 64), colorfmt="rgba")
+        self._latest = data
+        if not getattr(self, "_draw_pending", False):
+            self._draw_pending = True
+            Clock.schedule_once(self._draw, 0)
+
+    def _draw(self, dt):
+        self._draw_pending = False
+        data = getattr(self, "_latest", None)
+        if not data or not self.connected:
+            return
+        tbl = getattr(self, "_tbl", None)
+        if tbl is None:
+            tbl = self._tbl = [
+                bytes(0 if (v >> bit) & 1 else 255 for v in range(256))
+                for bit in range(8)]
+        rows = [data[(y // 8) * 128:(y // 8) * 128 + 128].translate(tbl[y % 8])
+                for y in range(64)]
+        tex = Texture.create(size=(128, 64), colorfmt="luminance")
         tex.mag_filter = "nearest"
-        px = bytearray(b"\xff\x82\x00\xff" * (128 * 64))
-        for i in range(1024):
-            b = data[i]
-            if not b:
-                continue
-            x = i % 128
-            base = (i // 128) * 8
-            for bit in range(8):
-                if (b >> bit) & 1:
-                    o = ((63 - (base + bit)) * 128 + x) * 4
-                    px[o:o + 4] = b"\x00\x00\x00\xff"
-        tex.blit_buffer(bytes(px), colorfmt="rgba", bufferfmt="ubyte")
+        tex.blit_buffer(b"".join(reversed(rows)), colorfmt="luminance",
+                        bufferfmt="ubyte")
         self.screen.texture = tex
-        self.screen.canvas.ask_update()
+        self.screen.color = (1, 0.51, 0, 1)
 
     def _key(self, name):
         rpc = self.link.rpc
